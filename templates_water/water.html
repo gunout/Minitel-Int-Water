@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌊 WATER TRADER - Marché de l'Eau</title>
+    <script src="/static/js/lightweight-charts.standalone.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000; color: #00ccff;
+            font-family: 'VT323', 'Courier New', monospace;
+            padding: 10px;
+        }
+        .container {
+            max-width: 1600px; margin: 0 auto; border: 2px solid #00ccff;
+            padding: 12px; background: #0a0a0a;
+        }
+        .header {
+            border-bottom: 2px solid #00ccff; padding-bottom: 10px; margin-bottom: 12px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+        }
+        .title { font-size: 2rem; font-weight: bold; letter-spacing: 4px; }
+        .blink { animation: blink 1s infinite; }
+        @keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+        .main-grid { display: grid; grid-template-columns: 2.5fr 1fr; gap: 12px; }
+        .card { border: 1px solid #00ccff; padding: 10px; margin-bottom: 10px; background: rgba(0,204,255,0.02); }
+        .card-title {
+            font-size: 0.9rem; font-weight: bold; border-bottom: 1px solid #00ccff;
+            padding-bottom: 4px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .price-display { text-align: center; padding: 15px; border: 1px solid #00ccff; }
+        .price { font-size: 3rem; font-weight: bold; text-shadow: 0 0 30px rgba(0,204,255,0.1); }
+        .change-positive { color: #33ff33; }
+        .change-negative { color: #ff3333; }
+        #chart-container { height: 500px; border: 1px solid #00ccff; background: #0a0a0a; position: relative; }
+        .chart-controls {
+            display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px;
+            padding: 4px; background: rgba(0,204,255,0.03); border: 1px solid #00ccff;
+        }
+        .chart-controls .group { display: flex; gap: 2px; align-items: center; padding: 0 6px; border-right: 1px solid rgba(0,204,255,0.3); }
+        .chart-controls .group:last-child { border-right: none; }
+        .chart-controls .group-label { font-size: 0.55rem; text-transform: uppercase; opacity: 0.5; margin-right: 4px; white-space: nowrap; }
+        .chart-controls button {
+            background: transparent; border: 1px solid #00ccff; color: #00ccff;
+            padding: 2px 8px; font-family: 'VT323', monospace; font-size: 0.65rem;
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .chart-controls button:hover { background: rgba(0,204,255,0.1); }
+        .chart-controls button.active { background: rgba(0,204,255,0.2); border-color: #00ccff; }
+        .input-group { display: flex; gap: 6px; margin: 6px 0; }
+        .input-group input {
+            flex: 1; background: transparent; border: 1px solid #00ccff; color: #00ccff;
+            padding: 4px 8px; font-family: 'VT323', monospace; font-size: 0.9rem;
+        }
+        .input-group input:focus { outline: none; background: rgba(0,204,255,0.05); }
+        .btn {
+            background: transparent; border: 1px solid #00ccff; color: #00ccff;
+            padding: 4px 12px; font-family: 'VT323', monospace; cursor: pointer; transition: all 0.2s;
+        }
+        .btn:hover { background: rgba(0,204,255,0.1); }
+        .btn-sm { padding: 2px 8px; font-size: 0.65rem; }
+        .quick-buttons { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 4px; }
+        .watchlist-item {
+            display: flex; justify-content: space-between; padding: 4px 8px;
+            border: 1px solid #00ccff; cursor: pointer; margin-bottom: 2px;
+            background: rgba(0,204,255,0.02); transition: all 0.2s;
+        }
+        .watchlist-item:hover { background: rgba(0,204,255,0.08); }
+        .watchlist-grid { max-height: 200px; overflow-y: auto; }
+        .watchlist-grid::-webkit-scrollbar { width: 4px; }
+        .watchlist-grid::-webkit-scrollbar-thumb { background: #00ccff; }
+        .signal-box { border: 1px solid #00ccff; padding: 4px 8px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+        .signal-buy { border-color: #33ff33; background: rgba(51,255,51,0.05); }
+        .signal-sell { border-color: #ff3333; background: rgba(255,51,51,0.05); }
+        .signal-neutral { border-color: #00ccff; background: rgba(0,204,255,0.05); }
+        .signal-box .signal-icon { font-size: 1.2rem; }
+        .signal-box .signal-content { flex: 1; }
+        .signal-box .signal-content .signal-title { font-weight: bold; font-size: 0.8rem; }
+        .signal-box .signal-content .signal-text { font-size: 0.7rem; opacity: 0.7; }
+        .recommendation-box { border: 2px solid #00ccff; padding: 10px; text-align: center; margin-top: 8px; }
+        .recommendation-buy { border-color: #33ff33; background: rgba(51,255,51,0.05); }
+        .recommendation-sell { border-color: #ff3333; background: rgba(255,51,51,0.05); }
+        .recommendation-neutral { border-color: #00ccff; background: rgba(0,204,255,0.05); }
+        .recommendation-box .rec-title { font-size: 1.5rem; font-weight: bold; }
+        .recommendation-box .rec-confidence { font-size: 0.8rem; opacity: 0.7; }
+        .metrics-grid {
+            display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-top: 8px;
+        }
+        .metric-card {
+            border: 1px solid #00ccff; padding: 4px; text-align: center;
+            background: rgba(0,204,255,0.02);
+        }
+        .metric-card .label { font-size: 0.5rem; text-transform: uppercase; opacity: 0.6; letter-spacing: 1px; }
+        .metric-card .value { font-size: 1rem; font-weight: bold; margin-top: 2px; }
+        .indicators-grid {
+            display: grid; grid-template-columns: repeat(3,1fr); gap: 4px;
+        }
+        .indicator-box {
+            border: 1px solid #00ccff; padding: 4px; text-align: center;
+            background: rgba(0,204,255,0.02);
+        }
+        .indicator-box .name { font-size: 0.5rem; text-transform: uppercase; opacity: 0.6; letter-spacing: 1px; }
+        .indicator-box .value { font-size: 0.9rem; font-weight: bold; }
+        .indicator-box .value.bullish { color: #33ff33; }
+        .indicator-box .value.bearish { color: #ff3333; }
+        .indicator-box .value.neutral { color: #00ccff; }
+        .ind-section-title {
+            font-size: 0.5rem; text-transform: uppercase; opacity: 0.4; letter-spacing: 2px;
+            grid-column: 1 / -1; padding-bottom: 2px; border-bottom: 1px solid rgba(0,204,255,0.15);
+        }
+        .prediction-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 4px; margin-top: 6px; }
+        .prediction-item { text-align: center; padding: 4px; border: 1px solid #00ccff; background: rgba(0,204,255,0.02); }
+        .prediction-item .day { font-size: 0.5rem; text-transform: uppercase; opacity: 0.6; }
+        .prediction-item .price { font-weight: bold; font-size: 0.8rem; }
+        .prediction-item .change-pred { font-size: 0.6rem; }
+        .footer { border-top: 2px solid #00ccff; padding-top: 8px; margin-top: 12px; text-align: center; font-size: 0.7rem; opacity: 0.6; }
+        .status-ok { color: #33ff33; }
+        .status-err { color: #ff3333; }
+        .price-info { display: flex; justify-content: center; gap: 15px; font-size: 0.8rem; opacity: 0.7; margin-top: 6px; }
+        .price-info span { display: flex; align-items: center; gap: 4px; }
+        .badge { padding: 2px 8px; border: 1px solid #00ccff; font-size: 0.6rem; background: rgba(0,204,255,0.05); }
+        .badge-water { border-color: #00ccff; color: #00ccff; background: rgba(0,204,255,0.1); }
+        .water-index-card {
+            background: rgba(0,204,255,0.02);
+            border: 2px solid #00ccff;
+            padding: 15px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .water-index-card .index-value { font-size: 2.5rem; font-weight: bold; }
+        .water-index-card .index-change { font-size: 1.2rem; margin-top: 5px; }
+        .water-index-card .index-details { font-size: 0.7rem; opacity: 0.5; margin-top: 8px; }
+        @media (max-width: 1200px) { .main-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) {
+            .title { font-size: 1.5rem; }
+            .metrics-grid { grid-template-columns: repeat(2,1fr); }
+            .indicators-grid { grid-template-columns: 1fr 1fr; }
+            .price { font-size: 2.2rem; }
+            .prediction-grid { grid-template-columns: repeat(3,1fr); }
+            #chart-container { height: 350px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <div class="title">🌊 WATER TRADER <span class="blink">▸</span></div>
+                <div style="font-size:0.6rem;opacity:0.4;letter-spacing:2px;">
+                    <i class="fas fa-water"></i> MARCHÉ DE L'EAU • ETFs • ACTIONS
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span class="badge badge-water">🌊 EAU</span>
+                <span id="status" style="border:1px solid #00ccff;padding:4px 12px;">⏳ CHARGEMENT...</span>
+            </div>
+        </div>
+
+        <!-- INDICE EAU -->
+        <div class="water-index-card" id="water-index-display">
+            <div style="font-size:0.7rem;opacity:0.5;letter-spacing:2px;">🌊 INDICE SYNTHÉTIQUE EAU</div>
+            <div class="index-value" id="index-value">--</div>
+            <div class="index-change" id="index-change">CHARGEMENT...</div>
+            <div class="index-details">
+                <span id="index-components">--</span> composants •
+                <span id="index-best">--</span> meilleur •
+                <span id="index-worst">--</span> pire
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div>
+                <div class="card">
+                    <div class="price-display">
+                        <div>
+                            <span id="current-symbol" style="font-size:1.5rem;">PHO</span>
+                            <span id="current-exchange" style="opacity:0.6;font-size:0.9rem;">NASDAQ</span>
+                            <span id="current-category" style="opacity:0.4;font-size:0.7rem;margin-left:8px;">ETF</span>
+                        </div>
+                        <div class="price" id="current-price">--</div>
+                        <div id="current-change">CHARGEMENT...</div>
+                        <div class="price-info">
+                            <span><i class="fas fa-arrow-up" style="color:#33ff33;"></i> HAUT: <strong id="day-high">--</strong></span>
+                            <span><i class="fas fa-arrow-down" style="color:#ff3333;"></i> BAS: <strong id="day-low">--</strong></span>
+                            <span><i class="fas fa-chart-simple"></i> VOLUME: <strong id="volume">--</strong></span>
+                            <span><i class="fas fa-clock"></i> <strong id="last-update">--</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card"><div class="label">OUVERTURE</div><div class="value" id="metric-open">--</div></div>
+                    <div class="metric-card"><div class="label">PRÉCÉDENT</div><div class="value" id="metric-prev">--</div></div>
+                    <div class="metric-card"><div class="label">VAR 5J</div><div class="value" id="metric-5d">--</div></div>
+                    <div class="metric-card"><div class="label">VAR 1M</div><div class="value" id="metric-1m">--</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><span><i class="fas fa-candlestick-chart"></i> CHANDELIERS</span></div>
+                    <div class="chart-controls">
+                        <div class="group">
+                            <span class="group-label">📅 PERIODE</span>
+                            <button class="active" data-period="1d" onclick="changePeriod('1d')">1J</button>
+                            <button data-period="5d" onclick="changePeriod('5d')">5J</button>
+                            <button data-period="1mo" onclick="changePeriod('1mo')">1M</button>
+                            <button data-period="3mo" onclick="changePeriod('3mo')">3M</button>
+                            <button data-period="6mo" onclick="changePeriod('6mo')">6M</button>
+                            <button data-period="1y" onclick="changePeriod('1y')">1A</button>
+                        </div>
+                        <div class="group">
+                            <span class="group-label">🕯️ TYPE</span>
+                            <button class="active" data-type="candle" onclick="changeChartType('candle')">BOUGIES</button>
+                            <button data-type="line" onclick="changeChartType('line')">LIGNE</button>
+                            <button data-type="area" onclick="changeChartType('area')">ZONE</button>
+                        </div>
+                    </div>
+                    <div id="chart-container"></div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card">
+                    <div class="card-title"><span><i class="fas fa-search"></i> RECHERCHE</span></div>
+                    <div class="input-group">
+                        <input type="text" id="symbol-input" placeholder="PHO" value="PHO">
+                        <button class="btn" onclick="fetchData()"><i class="fas fa-arrow-right"></i></button>
+                    </div>
+                    <div class="quick-buttons">
+                        <button class="btn btn-sm" onclick="quickSelect('PHO')">📊 PHO</button>
+                        <button class="btn btn-sm" onclick="quickSelect('FIW')">📊 FIW</button>
+                        <button class="btn btn-sm" onclick="quickSelect('CGW')">📊 CGW</button>
+                        <button class="btn btn-sm" onclick="quickSelect('PIO')">📊 PIO</button>
+                        <button class="btn btn-sm" onclick="quickSelect('EVX')">📊 EVX</button>
+                        <button class="btn btn-sm" onclick="quickSelect('AWK')">💧 AWK</button>
+                        <button class="btn btn-sm" onclick="quickSelect('XYL')">💧 XYL</button>
+                        <button class="btn btn-sm" onclick="quickSelect('VE')">💧 VE</button>
+                        <button class="btn btn-sm" onclick="quickSelect('WAT')">💧 WAT</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><span><i class="fas fa-star"></i> WATCHLIST</span><button class="btn btn-sm" onclick="refreshWatchlist()"><i class="fas fa-sync"></i></button></div>
+                    <div id="watchlist" class="watchlist-grid">CHARGEMENT...</div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><span><i class="fas fa-trophy"></i> TOP PERFORMERS</span></div>
+                    <div id="top-performers">CHARGEMENT...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            🌊 WATER TRADER v1.0 • Données via Yahoo Finance
+        </div>
+    </div>
+
+    <script>
+        var API_BASE = 'http://localhost:5006/api';
+        var currentSymbol = 'PHO';
+        var currentPeriod = '1d';
+        var chartType = 'candle';
+        var chart = null;
+        var candlesData = [];
+
+        function fetchData() {
+            var sym = document.getElementById('symbol-input').value.trim() || 'PHO';
+            currentSymbol = sym;
+
+            var statusEl = document.getElementById('status');
+            statusEl.textContent = '⏳ CHARGEMENT...';
+            statusEl.style.borderColor = '#00ccff';
+
+            fetch(API_BASE + '/water/' + encodeURIComponent(sym))
+                .then(r => {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        statusEl.textContent = '❌ ' + data.error;
+                        statusEl.style.borderColor = '#ff3333';
+                        return;
+                    }
+                    statusEl.textContent = '🟢 CONNECTÉ';
+                    statusEl.style.borderColor = '#33ff33';
+                    updateDisplay(data);
+                    updateChart(data);
+                    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('fr-FR');
+                })
+                .catch(err => {
+                    statusEl.textContent = '❌ ERREUR: ' + err.message;
+                    statusEl.style.borderColor = '#ff3333';
+                    console.error(err);
+                });
+        }
+
+        function updateDisplay(data) {
+            var pd = data.data[currentPeriod] || data.data['1d'] || data.data['1mo'];
+            if (!pd) return;
+            var st = pd.stats;
+            var candles = pd.candles || [];
+
+            document.getElementById('current-symbol').textContent = data.symbol;
+            document.getElementById('current-exchange').textContent = data.exchange || 'NASDAQ';
+            document.getElementById('current-category').textContent = data.category || 'ETF';
+            document.getElementById('current-price').textContent = '$' + st.current_price.toFixed(2);
+
+            var cls = st.change >= 0 ? 'change-positive' : 'change-negative';
+            var sign = st.change >= 0 ? '+' : '';
+            document.getElementById('current-change').innerHTML =
+                '<span class="' + cls + '">' + sign + st.change_percent.toFixed(2) + '% (' + sign + st.change.toFixed(2) + ')</span>';
+
+            document.getElementById('day-high').textContent = '$' + st.high.toFixed(2);
+            document.getElementById('day-low').textContent = '$' + st.low.toFixed(2);
+
+            var vol = st.volume;
+            if (vol > 1000000) vol = (vol/1000000).toFixed(1) + 'M';
+            else if (vol > 1000) vol = (vol/1000).toFixed(1) + 'K';
+            document.getElementById('volume').textContent = vol;
+
+            document.getElementById('metric-open').textContent = candles.length > 0 ? '$' + candles[0].open.toFixed(2) : '--';
+            document.getElementById('metric-prev').textContent = '$' + (st.current_price - st.change).toFixed(2);
+
+            if (candles.length > 5) {
+                var c5 = ((candles[candles.length-1].close - candles[candles.length-6].close) / candles[candles.length-6].close * 100);
+                document.getElementById('metric-5d').textContent = (c5 >= 0 ? '+' : '') + c5.toFixed(1) + '%';
+            }
+            if (candles.length > 20) {
+                var c1 = ((candles[candles.length-1].close - candles[candles.length-21].close) / candles[candles.length-21].close * 100);
+                document.getElementById('metric-1m').textContent = (c1 >= 0 ? '+' : '') + c1.toFixed(1) + '%';
+            }
+        }
+
+        function updateChart(data) {
+            var pd = data.data[currentPeriod] || data.data['1d'] || data.data['1mo'];
+            if (!pd) return;
+
+            candlesData = pd.candles || [];
+            if (candlesData.length === 0) return;
+
+            var container = document.getElementById('chart-container');
+
+            if (chart) {
+                try { chart.remove(); } catch(e) {}
+                chart = null;
+            }
+
+            if (typeof LightweightCharts === 'undefined') {
+                document.getElementById('status').textContent = '❌ LIB NON CHARGÉE';
+                return;
+            }
+
+            chart = LightweightCharts.createChart(container, {
+                width: container.clientWidth,
+                height: 500,
+                layout: {
+                    background: { color: '#0a0a0a' },
+                    textColor: '#00ccff',
+                    fontFamily: "'VT323', monospace"
+                },
+                grid: {
+                    vertLines: { color: '#1a1a1a' },
+                    horzLines: { color: '#1a1a1a' }
+                },
+                timeScale: {
+                    borderColor: '#00ccff',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+                rightPriceScale: {
+                    borderColor: '#00ccff',
+                    scaleMargins: { top: 0.05, bottom: 0.05 }
+                }
+            });
+
+            var chartData = candlesData.map(c => ({
+                time: c.time,
+                open: c.open,
+                high: c.high,
+                low: c.low,
+                close: c.close
+            }));
+
+            if (chartType === 'candle') {
+                var series = chart.addCandlestickSeries({
+                    upColor: '#33ff33',
+                    downColor: '#ff3333',
+                    borderUpColor: '#33ff33',
+                    borderDownColor: '#ff3333',
+                    wickUpColor: '#33ff33',
+                    wickDownColor: '#ff3333',
+                    priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+                });
+                series.setData(chartData);
+            } else if (chartType === 'line') {
+                var series = chart.addLineSeries({
+                    color: '#00ccff',
+                    lineWidth: 2,
+                    priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+                });
+                series.setData(chartData.map(c => ({ time: c.time, value: c.close })));
+            } else if (chartType === 'area') {
+                var series = chart.addAreaSeries({
+                    topColor: 'rgba(0,204,255,0.3)',
+                    bottomColor: 'rgba(0,204,255,0.01)',
+                    lineColor: '#00ccff',
+                    lineWidth: 2,
+                    priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+                });
+                series.setData(chartData.map(c => ({ time: c.time, value: c.close })));
+            }
+
+            chart.timeScale().fitContent();
+        }
+
+        function changePeriod(period) {
+            currentPeriod = period;
+            document.querySelectorAll('[data-period]').forEach(b => b.classList.toggle('active', b.dataset.period === period));
+            fetchData();
+        }
+
+        function changeChartType(type) {
+            chartType = type;
+            document.querySelectorAll('[data-type]').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+            if (candlesData.length > 0) {
+                var data = { data: {} };
+                data.data[currentPeriod] = { candles: candlesData };
+                updateChart(data);
+            }
+        }
+
+        function quickSelect(symbol) {
+            document.getElementById('symbol-input').value = symbol;
+            fetchData();
+        }
+
+        function refreshWatchlist() {
+            fetch(API_BASE + '/water-watchlist')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data || data.error) {
+                        document.getElementById('watchlist').textContent = '❌ INDISPONIBLE';
+                        return;
+                    }
+                    var html = '';
+                    data.forEach(item => {
+                        if (item.error) return;
+                        var cls = item.changePercent >= 0 ? 'change-positive' : 'change-negative';
+                        var sign = item.changePercent >= 0 ? '+' : '';
+                        html += '<div class="watchlist-item" onclick="quickSelect(\'' + item.symbol + '\')">';
+                        html += '<span>' + item.symbol + ' ' + (item.name || '') + '</span>';
+                        html += '<span>$' + item.price.toFixed(2) + ' <span class="' + cls + '">' + sign + item.changePercent.toFixed(2) + '%</span></span>';
+                        html += '</div>';
+                    });
+                    document.getElementById('watchlist').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('watchlist').textContent = '❌ ERREUR';
+                    console.error(err);
+                });
+        }
+
+        function refreshTopPerformers() {
+            fetch(API_BASE + '/water-top-performers')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data || data.error) {
+                        document.getElementById('top-performers').textContent = '❌ INDISPONIBLE';
+                        return;
+                    }
+                    var html = '';
+                    data.forEach((item, idx) => {
+                        var cls = item.changePercent >= 0 ? 'change-positive' : 'change-negative';
+                        var sign = item.changePercent >= 0 ? '+' : '';
+                        var star = idx === 0 ? '🏆 ' : '';
+                        html += '<div class="watchlist-item" onclick="quickSelect(\'' + item.symbol + '\')">';
+                        html += '<span>' + star + item.symbol + ' ' + (item.name || '') + '</span>';
+                        html += '<span>$' + item.price.toFixed(2) + ' <span class="' + cls + '">' + sign + item.changePercent.toFixed(2) + '%</span></span>';
+                        html += '</div>';
+                    });
+                    document.getElementById('top-performers').innerHTML = html;
+                })
+                .catch(err => {
+                    document.getElementById('top-performers').textContent = '❌ ERREUR';
+                    console.error(err);
+                });
+        }
+
+        function refreshWaterIndex() {
+            fetch(API_BASE + '/water-index')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('water-index-display').innerHTML = '❌ ' + data.error;
+                        return;
+                    }
+                    document.getElementById('index-value').textContent = '$' + data.value.toFixed(2);
+                    var cls = data.changePercent >= 0 ? 'change-positive' : 'change-negative';
+                    var sign = data.changePercent >= 0 ? '+' : '';
+                    document.getElementById('index-change').innerHTML =
+                        '<span class="' + cls + '">' + sign + data.changePercent.toFixed(2) + '% ($' + sign + data.change.toFixed(2) + ')</span>';
+                    document.getElementById('index-components').textContent = data.components;
+                    if (data.best_performer) {
+                        document.getElementById('index-best').textContent = '🏆 ' + data.best_performer.symbol;
+                    }
+                    if (data.worst_performer) {
+                        document.getElementById('index-worst').textContent = '📉 ' + data.worst_performer.symbol;
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+
+        function resizeChart() {
+            if (chart) {
+                var container = document.getElementById('chart-container');
+                try {
+                    chart.resize(container.clientWidth, 500);
+                } catch(e) {}
+            }
+        }
+
+        window.addEventListener('load', function() {
+            if (typeof LightweightCharts === 'undefined') {
+                document.getElementById('status').textContent = '❌ LIB NON CHARGÉE';
+                return;
+            }
+            fetchData();
+            refreshWatchlist();
+            refreshTopPerformers();
+            refreshWaterIndex();
+            setInterval(fetchData, 60000);
+            setInterval(refreshWatchlist, 120000);
+            setInterval(refreshTopPerformers, 120000);
+            setInterval(refreshWaterIndex, 60000);
+            setTimeout(resizeChart, 200);
+        });
+
+        window.addEventListener('resize', function() {
+            resizeChart();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && document.activeElement.id === 'symbol-input') fetchData();
+        });
+    </script>
+</body>
+</html>
